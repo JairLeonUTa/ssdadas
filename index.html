@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Pedidos</title>
+</head>
+<body>
+    <h2>Registrar cliente</h2>
+    <form id="cliente">
+        <input type="hidden" name="tipo" value="cliente">
+        <label>ID: <input name="cliID"></label><br>
+        <label>Nombre: <input name="cliNombre"></label><br>
+        <label>Apellido: <input name="cliApellido"></label><br>
+        <label>Dirección: <input name="cliDireccion"></label><br>
+        <label>Teléfono: <input name="cliTelefono" type="tel"></label><br>
+        <button>Guardar cliente</button>
+    </form>
+
+    <h2>Registrar producto</h2>
+    <form id="producto">
+        <input type="hidden" name="tipo" value="producto">
+        <label>ID: <input name="proID" type="number"></label><br>
+        <label>Nombre: <input name="proNombre"></label>
+        <button>Guardar producto</button>
+    </form>
+
+    <h2>Registrar pedido</h2>
+    <form id="pedido">
+        <input type="hidden" name="tipo" value="pedido">
+        <label>Cliente: <select name="pedClienteID"></select></label><br>
+        <label>Producto: <select name="pedProductoID"></select></label><br>
+        <label>Fecha: <input name="pedFecha" type="date"></label><br>
+        <button>Guardar pedido</button>
+    </form>
+    <p id="mensaje" role="status"></p>
+
+    <h2>Buscar pedidos</h2>
+    <form id="buscar" novalidate>
+        <label>ID o nombre del cliente: <input name="cliente"></label><br>
+        <label>Número de pedido: <input name="pedido" type="number"></label><br>
+        <button>Buscar</button>
+    </form>
+    <p id="resultado" role="status"></p>
+    <table>
+        <thead>
+            <tr><th>Número</th><th>Fecha</th><th>ID del cliente</th><th>Cliente</th><th>Producto</th></tr>
+        </thead>
+        <tbody id="tabla"></tbody>
+    </table>
+
+    <script>
+        const cliente = document.getElementById('cliente');
+        const producto = document.getElementById('producto');
+        const pedido = document.getElementById('pedido');
+        const buscar = document.getElementById('buscar');
+        const mensaje = document.getElementById('mensaje');
+        const resultado = document.getElementById('resultado');
+        const tabla = document.getElementById('tabla');
+
+        async function consultar(url, opciones) {
+            const respuesta = await fetch(url, opciones);
+            const datos = await respuesta.json();
+            if (!respuesta.ok) {
+                throw new Error(datos.error);
+            }
+            return datos;
+        }
+
+        async function cargarOpciones() {
+            const datos = await consultar('select.php?vista=opciones');
+            const clientes = pedido.elements.pedClienteID;
+            const productos = pedido.elements.pedProductoID;
+            const clienteElegido = clientes.value;
+            const productoElegido = productos.value;
+            clientes.replaceChildren(new Option('Selecciona un cliente', ''));
+            productos.replaceChildren(new Option('Selecciona un producto', ''));
+
+            for (const c of datos.clientes) {
+                clientes.add(new Option(c.cliNombre + ' ' + c.cliApellido + ' (' + c.cliID + ')', c.cliID));
+            }
+            for (const p of datos.productos) {
+                productos.add(new Option(p.proNombre + ' (#' + p.proID + ')', p.proID));
+            }
+
+            clientes.value = clienteElegido;
+            productos.value = productoElegido;
+        }
+
+        async function guardar(evento) {
+            evento.preventDefault();
+            const formulario = evento.currentTarget;
+            const boton = formulario.querySelector('button');
+            boton.disabled = true;
+
+            try {
+                const datos = await consultar('insert.php', {
+                    method: 'POST',
+                    body: new FormData(formulario)
+                });
+                formulario.reset();
+
+                if (formulario === pedido) {
+                    mensaje.textContent = 'Pedido guardado. Número: ' + datos.id;
+                    buscarPedidos();
+                } else {
+                    mensaje.textContent = formulario === cliente ? 'Cliente guardado.' : 'Producto guardado.';
+                    await cargarOpciones();
+                }
+            } catch (error) {
+                mensaje.textContent = error.message;
+            } finally {
+                boton.disabled = false;
+            }
+        }
+
+        async function buscarPedidos() {
+            const filtros = new URLSearchParams(new FormData(buscar));
+            try {
+                const datos = await consultar('select.php?' + filtros);
+                tabla.replaceChildren();
+                for (const p of datos.pedidos) {
+                    const fila = tabla.insertRow();
+                    fila.insertCell().textContent = p.pedID;
+                    fila.insertCell().textContent = p.pedFecha;
+                    fila.insertCell().textContent = p.cliID;
+                    fila.insertCell().textContent = p.cliNombre + ' ' + p.cliApellido;
+                    fila.insertCell().textContent = p.proNombre;
+                }
+                resultado.textContent = datos.pedidos.length ? '' : 'No se encontraron pedidos.';
+            } catch (error) {
+                tabla.replaceChildren();
+                resultado.textContent = error.message;
+            }
+        }
+
+        cliente.onsubmit = guardar;
+        producto.onsubmit = guardar;
+        pedido.onsubmit = guardar;
+        buscar.onsubmit = function (evento) {
+            evento.preventDefault();
+            buscarPedidos();
+        };
+
+        cargarOpciones().catch(error => { mensaje.textContent = error.message; });
+        buscarPedidos();
+    </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+CREATE DATABASE IF NOT EXISTS repaso_pedidos
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE repaso_pedidos;
+
+CREATE TABLE IF NOT EXISTS clientes (
+    cliID VARCHAR(30) PRIMARY KEY,
+    cliNombre VARCHAR(100) NOT NULL,
+    cliApellido VARCHAR(100) NOT NULL,
+    cliDireccion VARCHAR(255) NOT NULL,
+    cliTelefono VARCHAR(30) NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS productos (
+    proID INT UNSIGNED PRIMARY KEY,
+    proNombre VARCHAR(150) NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS pedidos (
+    pedID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    pedClienteID VARCHAR(30) NOT NULL,
+    pedProductoID INT UNSIGNED NOT NULL,
+    pedFecha DATE NOT NULL,
+    FOREIGN KEY (pedClienteID) REFERENCES clientes (cliID),
+    FOREIGN KEY (pedProductoID) REFERENCES productos (proID)
+) ENGINE=InnoDB;
